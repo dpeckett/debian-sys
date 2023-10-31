@@ -13,14 +13,18 @@ docker:
   RUN mkdir -p /etc/initramfs-tools/conf.d/ \
     && echo "RESUME=none" > /etc/initramfs-tools/conf.d/resume
   RUN apt update \
+    && apt install -y debootstrap \
+    && debootstrap --print-debs bookworm "$(mktemp -d)" 'http://deb.debian.org/debian' | tr '\n' ' ' > packages.txt \
+    && apt remove -y debootstrap \
+    && apt autoremove -y \
+    && xargs -a packages.txt apt install -y \
+    && rm packages.txt \
     && apt install -y \
       lvm2 \
       sudo \
-      systemd \
       systemd-resolved \
-      systemd-sysv \
-      qemu-guest-agent \
       linux-image-${TARGETARCH} \
+      qemu-guest-agent \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /vmlinuz.old /initrd.img.old
   RUN systemctl enable systemd-networkd \
@@ -38,8 +42,3 @@ docker:
     && systemctl enable serial-getty@ttyS0.service
   SAVE IMAGE --push ghcr.io/dpeckett/debian-sys:${VERSION}
   SAVE IMAGE --push ghcr.io/dpeckett/debian-sys:latest
-
-tools:
-  ARG TARGETARCH
-  RUN apt update && apt install -y ca-certificates curl jq
-  RUN curl -fsSL https://get.docker.com | bash
