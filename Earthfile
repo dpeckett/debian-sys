@@ -9,23 +9,23 @@ docker:
   ARG TARGETARCH
   ARG VERSION
   FROM debian:bookworm
-  RUN apt update
-  RUN apt install -y \
-    sudo \
-    systemd \
-    systemd-resolved \
-    systemd-sysv \
-    systemd-timesyncd \
-    openssh-server \
-    qemu-guest-agent \
-    linux-image-${TARGETARCH}
+  # Disable swap.
+  RUN mkdir -p /etc/initramfs-tools/conf.d/ \
+    && echo "RESUME=none" > /etc/initramfs-tools/conf.d/resume
+  RUN apt update \
+    && apt install -y \
+      lvm2 \
+      sudo \
+      systemd \
+      systemd-resolved \
+      systemd-sysv \
+      systemd-timesyncd \
+      qemu-guest-agent \
+      linux-image-${TARGETARCH} \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /vmlinuz.old /initrd.img.old
   RUN systemctl enable systemd-networkd \
-    && systemctl enable systemd-resolved \
-    && systemctl enable ssh
-  # Fixup sudo permissions
-  RUN chown root:root /usr/bin/sudo && chmod 4755 /usr/bin/sudo
-  # Add kernel symlink
-  RUN ln -s /boot/vmlinuz-*-${TARGETARCH} /boot/vmlinuz
+    && systemctl enable systemd-resolved
   RUN rm -rf /var/cache/* \
     && journalctl --vacuum-size=1K \
     && rm /etc/machine-id \
